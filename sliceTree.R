@@ -10,8 +10,9 @@ p <- arg_parser(
 )
 p <- add_argument(p, "--maxDepth", help="maximum tree depth",default=4L)
 p <- add_argument(p, "--sliceSize", help="Maximum size of tree slice",default="18T")
+p <- add_argument(p, "--outdir", help="Output directory for slice files",default=".")
 p <- add_argument(p, "baseDir", help="base directory for search", default=".")
-# args <- list(maxDepth=4L,sliceSize="10G",baseDir="/home/jweile")
+# args <- list(maxDepth=4L,sliceSize="10G",baseDir="/home/jweile",outdir=".")
 args <- parse_args(p)
 
 ssRaw <- as.numeric(substr(args$sliceSize,1,nchar(args$sliceSize)-1))
@@ -52,17 +53,6 @@ sortTree <- function(tree) {
   }
 }
 
-# fetchSubtree <- function(tree,path) {
-#   for (node in path) {
-#     if (node %in% names(tree)) {
-#       tree <- tree[[node]]
-#     } else {
-#       stop("Path does not exist!")
-#     }
-#   }
-#   return(tree)
-# }
-
 printTree <- function(tree,level=0) {
   leaf <- which(names(tree)=="/")
   spacer <- paste(rep("    ",level),collapse="")
@@ -79,77 +69,6 @@ printTree <- function(tree,level=0) {
     }
   }
 }
-
-# fixSizes <- function(tree) {
-#   if ("/" %in% names(tree) && length(tree[["/"]]) > 0 && !is.na(tree[["/"]])) {
-#     return(tree)
-#   } 
-#   branchNames <- names(tree)[which(names(tree)!="/")]
-#   if (length(branchNames) > 0) {
-#     tree <- lapply(branchNames, \(b) fixSizes(tree[[b]])) |> setNames(branchNames)
-#     tree[["/"]] <- sum(sapply(tree[branchNames],`[[`,"/"))
-#   }
-#   return(tree)
-# }
-
-# recalculateSizes <- function(tree) {
-#   branchNames <- names(tree)[which(names(tree)!="/")]
-#   if (length(branchNames) > 0) {
-#     newTree <- lapply(branchNames,\(b) recalculateSizes(tree[[b]])) |> setNames(branchNames)
-#     newTree[["/"]] <- sum(sapply(newTree,`[[`,"/"))
-#     if (newTree[["/"]] != tree[["/"]]) {
-#       cat(sprintf("%d\n",newTree[["/"]]-tree[["/"]]))
-#     }
-#     return(newTree)
-#   } else {
-#     return(tree)
-#   }
-# }
-
-# seizePath <- function(node,maxSize,path=NULL) {
-#   if (node[["/"]] > maxSize) {
-#     branches <- names(node)[which(names(node)!="/")]
-#     if (length(branches) > 0) {
-#       return(seizePath(node[[branches[[1]]]],maxSize,c(path,branches[[1]])))
-#     } else {
-#       return(NA)
-#     }
-#   } else {
-#     return(path)
-#   }
-# }
-
-# removeSubtree <- function(tree,path) {
-#   if (length(path) > 1) {
-#     prunedBranch <- removeSubtree(tree[[path[[1]]]],path[[-1]])
-#     removedSize <- tree[[path[[1]]]][["/"]] - prunedBranch[["/"]]
-#     tree[[path[[1]]]] <- prunedBranch
-#   } else {#i.e. we've reached the end of the path
-#     removedSize <- tree[[path]][["/"]]
-#     tree <- tree[-which(names(tree)==path)]
-#   }
-#   tree[["/"]] <- tree[["/"]] - removedSize
-#   return(tree)
-# }
-
-# sliceTree <- function(tree,targetSize) {
-#   tree <- tree[[1]]
-#   remainingSpace <- targetSize
-#   paths <- list()
-#   while (remainingSpace > 0) {
-#     path <- seizePath(tree,remainingSpace)
-#     print(path)
-#     if (any(is.na(path))) {
-#       #then no more paths fit within the remaining Space
-#       break
-#     }
-#     paths <- c(paths,path)
-#     subtree <- fetchSubtree(tree,path)
-#     remainingSpace <- remainingSpace-subtree[["/"]]
-#     tree <- removeSubtree(tree,path)
-#   }
-#   list(paths=paths,size=targetSize-remainingSpace)
-# }
 
 flattenTree <- function(tree,path=NULL,nodeName=NULL) {
   brNames <- names(tree)[names(tree)!="/"]
@@ -204,9 +123,23 @@ printSlices <- function(slices,absolute=FALSE) {
     tranch <- slices$tranches[[i]]
     cat(sprintf("\n\n\n############\n Slice %02d\n Size: %s\n############\n",i,formatSize(tranch$size)))
     if (absolute) {
-      tranch <- sapply(tranch, \(x) paste0("/",x))
+      tranch$tranch <- sapply(tranch$tranch, \(x) paste0("/",x))
     }
     writeLines(tranch$tranch)
+  }
+}
+
+exportSlices <- function(slices,absolute=FALSE,outdir=".",jobname="job") {
+  for (i in 1:length(slices$tranches)) {
+    tranch <- slices$tranches[[i]]
+    # cat(sprintf("\n\n\n############\n Slice %02d\n Size: %s\n############\n",i,formatSize(tranch$size)))
+    if (absolute) {
+      tranch$tranch <- sapply(tranch$tranch, \(x) paste0("/",x))
+    }
+    outfile <- sprintf("%s/%s_slice%02d_%s.txt",outdir,jobname,i,formatSize(tranch$size))
+    con <- file(outfile,open="w")
+    writeLines(tranch$tranch,con)
+    close(con)
   }
 }
 
@@ -221,17 +154,15 @@ absolute <- substr(args$baseDir,1,1)=="/"
 pstart <- if (absolute) 3 else 2
 tree <- list()
 for (fs in strsplit(lines,"\\t|/")) {
-  #convert KiB to GiB
-  # size <- as.numeric(fs[[1]])/(2^20)
   size <- as.numeric(fs[[1]])
   tree <- treeInsert(tree,fs[pstart:length(fs)],size) 
 }
-# tree <- fixSizes(tree)
 
 cat("Slicing...\n")
 
 slices <- tree |> sortTree() |> flattenTree() |> sliceFlatTree(sliceSizeKB)
 
+exportSlices(slices,absolute,outdir=args$outdir,jobname=basename(args$baseDir))
 printSlices(slices,absolute)
 
 

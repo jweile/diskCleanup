@@ -1,0 +1,4 @@
+/export/rawseq/nextseq
+/export/rawseq/seq_archive
+/export/rawseq/ccbr_miseq
+/export/rawseq/miseq

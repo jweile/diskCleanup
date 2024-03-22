@@ -1,0 +1,6 @@
+/export/rawseq/pastLabMemberHomes/ghaddad
+/export/rawseq/pastLabMemberHomes/deepseq
+/home/rothlab_arch/jwu
+/home/rothlab_arch/rjiang
+/home/rothlab_arch/dkim
+/home/rothlab_arch/epetsala

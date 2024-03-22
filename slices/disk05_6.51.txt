@@ -1,0 +1,12 @@
+/home/rothlab_arch/jknapp
+/home/rothlab_arch/bliu
+/home/rothlab_arch/ssun
+/home/rothlab_arch/ccenik
+/home/rothlab_arch/syang
+/home/rothlab_arch/mtasan
+/home/rothlab_arch/mtaipale
+/home/rothlab_arch/ihorecka
+/home/rothlab_arch/dpouyaba
+/home/rothlab_arch/asababi
+/home/rothlab_arch/ihazelwo
+/home/rothlab_arch/mgeuroth
